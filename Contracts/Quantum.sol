@@ -3,75 +3,126 @@ pragma solidity ^0.8.0;
 
 /**
  * @title QuantumDapp
- * @dev A simple decentralized app for managing digital assets and recording ownership transactions.
+ * @dev A decentralized quantum-resistant data storage and verification system
+ * @notice This contract allows users to store quantum-secured data hashes with timestamps
  */
-
 contract QuantumDapp {
-    address public owner;
-
-    struct Asset {
-        uint id;
-        string name;
-        address creator;
-        address currentOwner;
-        uint createdAt;
+    
+    // Struct to store quantum data entries
+    struct QuantumData {
+        bytes32 dataHash;
+        uint256 timestamp;
+        address owner;
+        bool isVerified;
+        string metadata;
     }
-
-    uint public assetCount;
-    mapping(uint => Asset) public assets;
-    mapping(address => uint[]) public userAssets;
-
-    event AssetCreated(uint indexed id, string name, address indexed creator);
-    event OwnershipTransferred(uint indexed id, address indexed from, address indexed to);
-
-    constructor() {
-        owner = msg.sender;
-    }
-
-    modifier onlyOwner() {
-        require(msg.sender == owner, "Only owner can access this function");
-        _;
-    }
-
+    
+    // Mapping from data ID to QuantumData
+    mapping(uint256 => QuantumData) public quantumRecords;
+    
+    // Mapping to track user's data entries
+    mapping(address => uint256[]) public userRecords;
+    
+    // Counter for data entries
+    uint256 public recordCount;
+    
+    // Events
+    event DataStored(uint256 indexed recordId, address indexed owner, bytes32 dataHash, uint256 timestamp);
+    event DataVerified(uint256 indexed recordId, address indexed verifier, uint256 timestamp);
+    event DataUpdated(uint256 indexed recordId, string newMetadata, uint256 timestamp);
+    
     /**
-     * @dev Create a new digital asset
-     * @param _name The name of the digital asset
+     * @dev Store quantum-secured data on the blockchain
+     * @param _dataHash The hash of the data to be stored
+     * @param _metadata Additional metadata about the data
+     * @return recordId The ID of the newly created record
      */
-    function createAsset(string memory _name) public {
-        assetCount++;
-        assets[assetCount] = Asset(assetCount, _name, msg.sender, msg.sender, block.timestamp);
-        userAssets[msg.sender].push(assetCount);
-        emit AssetCreated(assetCount, _name, msg.sender);
+    function storeQuantumData(bytes32 _dataHash, string memory _metadata) public returns (uint256) {
+        require(_dataHash != bytes32(0), "Invalid data hash");
+        
+        recordCount++;
+        uint256 newRecordId = recordCount;
+        
+        quantumRecords[newRecordId] = QuantumData({
+            dataHash: _dataHash,
+            timestamp: block.timestamp,
+            owner: msg.sender,
+            isVerified: false,
+            metadata: _metadata
+        });
+        
+        userRecords[msg.sender].push(newRecordId);
+        
+        emit DataStored(newRecordId, msg.sender, _dataHash, block.timestamp);
+        
+        return newRecordId;
     }
-
+    
     /**
-     * @dev Transfer ownership of an existing asset
-     * @param _assetId The ID of the asset
-     * @param _newOwner Address of the new owner
+     * @dev Verify quantum data integrity
+     * @param _recordId The ID of the record to verify
+     * @param _dataHash The hash to verify against stored data
+     * @return bool True if verification succeeds
      */
-    function transferOwnership(uint _assetId, address _newOwner) public {
-        Asset storage asset = assets[_assetId];
-        require(asset.currentOwner == msg.sender, "You are not the current owner");
-        require(_newOwner != address(0), "Invalid new owner address");
-
-        address previousOwner = asset.currentOwner;
-        asset.currentOwner = _newOwner;
-
-        userAssets[_newOwner].push(_assetId);
-        emit OwnershipTransferred(_assetId, previousOwner, _newOwner);
+    function verifyQuantumData(uint256 _recordId, bytes32 _dataHash) public returns (bool) {
+        require(_recordId > 0 && _recordId <= recordCount, "Invalid record ID");
+        require(quantumRecords[_recordId].dataHash == _dataHash, "Data verification failed");
+        
+        quantumRecords[_recordId].isVerified = true;
+        
+        emit DataVerified(_recordId, msg.sender, block.timestamp);
+        
+        return true;
     }
-
+    
     /**
-     * @dev Get details of a specific asset
-     * @param _assetId The ID of the asset
+     * @dev Update metadata for existing quantum data
+     * @param _recordId The ID of the record to update
+     * @param _newMetadata New metadata string
      */
-    function getAsset(uint _assetId)
-        public
-        view
-        returns (string memory, address, address, uint)
-    {
-        Asset memory asset = assets[_assetId];
-        return (asset.name, asset.creator, asset.currentOwner, asset.createdAt);
+    function updateMetadata(uint256 _recordId, string memory _newMetadata) public {
+        require(_recordId > 0 && _recordId <= recordCount, "Invalid record ID");
+        require(quantumRecords[_recordId].owner == msg.sender, "Only owner can update metadata");
+        
+        quantumRecords[_recordId].metadata = _newMetadata;
+        
+        emit DataUpdated(_recordId, _newMetadata, block.timestamp);
+    }
+    
+    /**
+     * @dev Get all record IDs for a specific user
+     * @param _user Address of the user
+     * @return uint256[] Array of record IDs
+     */
+    function getUserRecords(address _user) public view returns (uint256[] memory) {
+        return userRecords[_user];
+    }
+    
+    /**
+     * @dev Get complete details of a quantum record
+     * @param _recordId The ID of the record
+     * @return dataHash The stored data hash
+     * @return timestamp When the data was stored
+     * @return owner Address of the data owner
+     * @return isVerified Verification status
+     * @return metadata Additional metadata
+     */
+    function getQuantumRecord(uint256 _recordId) public view returns (
+        bytes32 dataHash,
+        uint256 timestamp,
+        address owner,
+        bool isVerified,
+        string memory metadata
+    ) {
+        require(_recordId > 0 && _recordId <= recordCount, "Invalid record ID");
+        
+        QuantumData memory record = quantumRecords[_recordId];
+        return (
+            record.dataHash,
+            record.timestamp,
+            record.owner,
+            record.isVerified,
+            record.metadata
+        );
     }
 }
-
